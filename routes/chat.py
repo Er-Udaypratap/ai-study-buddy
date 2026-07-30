@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from services.ai_service import get_ai_response
+from services.ai_service import get_ai_response, client
 
 router = APIRouter()
 
@@ -14,6 +14,21 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     mode: str
+
+
+@router.get("/models")
+def list_models():
+    """Diagnostic endpoint - ye API key ke saath kaunse models kaam karte hain, ye dikhata hai"""
+    try:
+        models = client.models.list()
+        available = [
+            m.name
+            for m in models
+            if "generateContent" in (m.supported_actions or [])
+        ]
+        return {"available_models": available}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/chat", response_model=ChatResponse)
