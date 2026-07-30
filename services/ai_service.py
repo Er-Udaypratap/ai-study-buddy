@@ -6,8 +6,8 @@ from services.prompts import get_system_prompt
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Free-tier friendly model - check ai.google.dev for the current free-tier model name/limits
-MODEL_NAME = "gemini-2.0-flash"
+# Free-tier model (2026) - gemini-2.0-flash free tier band bandy; 2.5 series abhi free tier me hai
+MODEL_NAME = "gemini-2.5-flash"
 
 
 def get_ai_response(mode: str, user_message: str, chat_history: list, context: str = ""):
