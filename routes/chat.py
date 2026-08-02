@@ -33,7 +33,7 @@ def list_models():
 
 @router.post("/chat", response_model=ChatResponse)
 def chat_endpoint(req: ChatRequest):
-    if req.mode not in ["education", "constitution", "english"]:
+    if req.mode not in ["general", "education", "constitution", "english"]:
         raise HTTPException(status_code=400, detail="Invalid mode")
 
     context = ""
