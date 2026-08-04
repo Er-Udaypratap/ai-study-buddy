@@ -6,8 +6,11 @@ from services.prompts import get_system_prompt
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# Confirmed available models (from /api/models check) - "latest" alias future-proof hai
-MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-2.5-flash"]
+import time
+
+# Sirf "-latest" aliases use karo - ye Google ke rolling stable pointers hain,
+# dated model names (2.5-flash, 2.5-flash-lite) baar baar deprecate ho rahe hain
+MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-pro-latest"]
 
 
 def get_ai_response(mode: str, user_message: str, chat_history: list, context: str = ""):
@@ -22,21 +25,28 @@ def get_ai_response(mode: str, user_message: str, chat_history: list, context: s
 
     errors = []
     for model_name in MODEL_CANDIDATES:
-        try:
-            chat = client.chats.create(
-                model=model_name,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    max_output_tokens=500,  # response chhota rakho - free quota bachane ke liye
-                    temperature=0.7,
-                ),
-                history=formatted_history,
-            )
-            response = chat.send_message(user_message)
-            return response.text
-        except Exception as e:
-            errors.append(f"{model_name}: {str(e)}")
-            continue  # agla model try karo
+        # Temporary errors (503/UNAVAILABLE) ke liye 2 retry karo isi model pe
+        for attempt in range(2):
+            try:
+                chat = client.chats.create(
+                    model=model_name,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        max_output_tokens=500,
+                        temperature=0.7,
+                    ),
+                    history=formatted_history,
+                )
+                response = chat.send_message(user_message)
+                return response.text
+            except Exception as e:
+                err_str = str(e)
+                errors.append(f"{model_name}: {err_str}")
+                is_temporary = "503" in err_str or "UNAVAILABLE" in err_str
+                if is_temporary and attempt == 0:
+                    time.sleep(1.5)  # thoda wait karke isi model ko phir try karo
+                    continue
+                break  # permanent error (404 etc) - agla model try karo
 
     # Sabhi models fail ho gaye
     raise Exception(" | ".join(errors))
